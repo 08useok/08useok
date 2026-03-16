@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Video Generator</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f7f7f8;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.container {
+  max-width: 800px;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.message {
+  display: flex;
+  max-width: 85%;
+}
+
+.message.user {
+  align-self: flex-end;
+}
+
+.message.assistant {
+  align-self: flex-start;
+}
+
+.bubble {
+  padding: 12px 16px;
+  border-radius: 18px;
+  line-height: 1.5;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.message.user .bubble {
+  background: #2563eb;
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.message.assistant .bubble {
+  background: #e5e7eb;
+  color: #1f2937;
+  border-bottom-left-radius: 4px;
+  min-width: 280px;
+}
+
+.progress-container {
+  margin-top: 8px;
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 8px;
+  background: #d1d5db;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: #2563eb;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+.elapsed-text {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.error-text {
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.video-result video {
+  width: 100%;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+.video-result a {
+  display: inline-block;
+  margin-top: 8px;
+  color: #2563eb;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.video-result a:hover {
+  text-decoration: underline;
+}
+
+.input-bar {
+  border-top: 1px solid #e5e7eb;
+  padding: 12px 16px;
+  display: flex;
+  gap: 8px;
+  background: #fff;
+}
+
+.input-bar textarea {
+  flex: 1;
+  resize: none;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 15px;
+  font-family: inherit;
+  line-height: 1.4;
+  outline: none;
+  min-height: 44px;
+  max-height: 120px;
+}
+
+.input-bar textarea:focus {
+  border-color: #2563eb;
+}
+
+.input-bar textarea:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+}
+
+.input-bar button {
+  align-self: flex-end;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 20px;
+  font-size: 15px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.input-bar button:hover {
+  background: #1d4ed8;
+}
+
+.input-bar button:disabled {
+  background: #93c5fd;
+  cursor: not-allowed;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="chat-messages" id="chatMessages"></div>
+  <div class="input-bar">
+    <textarea id="promptInput" rows="1" placeholder="영상 프롬프트를 입력하세요..."></textarea>
+    <button id="sendBtn">전송</button>
+  </div>
+</div>
+
+<script>
+const chatMessages = document.getElementById('chatMessages');
+const promptInput = document.getElementById('promptInput');
+const sendBtn = document.getElementById('sendBtn');
+
+function scrollToBottom() {
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function addUserMessage(text) {
+  const msg = document.createElement('div');
+  msg.className = 'message user';
+  msg.innerHTML = '<div class="bubble">' + escapeHtml(text) + '</div>';
+  chatMessages.appendChild(msg);
+  scrollToBottom();
+}
+
+function createAssistantBubble() {
+  const msg = document.createElement('div');
+  msg.className = 'message assistant';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML =
+    '<div class="progress-container">' +
+      '<div class="progress-bar-bg"><div class="progress-bar-fill"></div></div>' +
+      '<div class="elapsed-text">0초 경과...</div>' +
+    '</div>';
+  msg.appendChild(bubble);
+  chatMessages.appendChild(msg);
+  scrollToBottom();
+  return bubble;
+}
+
+function updateProgress(bubble, elapsed, percent) {
+  const fill = bubble.querySelector('.progress-bar-fill');
+  const text = bubble.querySelector('.elapsed-text');
+  if (fill) fill.style.width = percent + '%';
+  if (text) text.textContent = elapsed + '초 경과...';
+  scrollToBottom();
+}
+
+function showVideo(bubble, filename) {
+  bubble.innerHTML =
+    '<div class="video-result">' +
+      '<video controls autoplay src="/videos/' + encodeURIComponent(filename) + '"></video>' +
+      '<a href="/videos/' + encodeURIComponent(filename) + '" download="' + escapeHtml(filename) + '">다운로드</a>' +
+    '</div>';
+  scrollToBottom();
+}
+
+function showError(bubble, message) {
+  bubble.innerHTML = '<span class="error-text">' + escapeHtml(message) + '</span>';
+  scrollToBottom();
+}
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+function setInputEnabled(enabled) {
+  promptInput.disabled = !enabled;
+  sendBtn.disabled = !enabled;
+  if (enabled) promptInput.focus();
+}
+
+function sendPrompt() {
+  const prompt = promptInput.value.trim();
+  if (!prompt) return;
+
+  addUserMessage(prompt);
+  promptInput.value = '';
+  setInputEnabled(false);
+
+  const bubble = createAssistantBubble();
+
+  fetch('/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: prompt })
+  }).then(function(response) {
+    if (!response.ok) {
+      return response.json().then(function(err) {
+        showError(bubble, err.error || '요청 실패');
+        setInputEnabled(true);
+      });
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    function read() {
+      reader.read().then(function(result) {
+        if (result.done) {
+          setInputEnabled(true);
+          return;
+        }
+        buffer += decoder.decode(result.value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'progress') {
+              updateProgress(bubble, data.elapsed, data.percent);
+            } else if (data.type === 'done') {
+              showVideo(bubble, data.filename);
+              setInputEnabled(true);
+              return;
+            } else if (data.type === 'error') {
+              showError(bubble, data.message);
+              setInputEnabled(true);
+              return;
+            }
+          } catch (e) {}
+        }
+        read();
+      }).catch(function(err) {
+        showError(bubble, '연결 오류: ' + err.message);
+        setInputEnabled(true);
+      });
+    }
+    read();
+  }).catch(function(err) {
+    showError(bubble, '연결 오류: ' + err.message);
+    setInputEnabled(true);
+  });
+}
+
+sendBtn.addEventListener('click', sendPrompt);
+
+promptInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendPrompt();
+  }
+});
+
+promptInput.addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+</script>
+</body>
+</html>
