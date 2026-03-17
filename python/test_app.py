@@ -773,6 +773,21 @@ def test_ui_input_cleared_after_send(client):
     assert "promptInput.value = ''" in html
 
 
+def test_ui_user_bubble_on_send(client):
+    """AC: 프롬프트 입력 후 전송 시 사용자 말풍선 즉시 표시.
+
+    Why: The spec (chat-ui.md AC #1) requires that the user's message appears
+    as a right-aligned bubble immediately when sendPrompt is called, before the
+    SSE stream starts. This test verifies sendPrompt calls addUserMessage.
+    """
+    resp = client.get("/")
+    html = resp.data.decode("utf-8")
+    # sendPrompt must call addUserMessage to display the user bubble
+    assert "function addUserMessage" in html
+    # Verify sendPrompt invokes addUserMessage (line: addUserMessage(prompt))
+    assert "addUserMessage(prompt)" in html
+
+
 def test_ui_stream_disconnect_shows_error(client):
     """AC: SSE 스트림이 done/error 이벤트 없이 끊기면 오류 표시.
 
