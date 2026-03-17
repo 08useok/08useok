@@ -2,7 +2,7 @@
 
 ## Status: Complete
 
-All functionality implemented and verified. Latest tag: `0.0.17`.
+All functionality implemented and verified. Latest tag: `0.0.18`.
 
 - **Backend**: `app.py` — Flask SSE endpoint, video serving (with Range request support), ZAI integration
 - **Frontend**: `templates/index.html` — chat UI with progress bar, video player, download
@@ -19,6 +19,7 @@ All functionality implemented and verified. Latest tag: `0.0.17`.
 - JS runtime behaviors (user bubble display, bubble replacement) are implemented correctly but untestable with pytest — would need Playwright/Selenium for browser-level verification.
 - `/videos/<filename>` has no `.mp4` restriction — acceptable for localhost-only app per `specs/overview.md` non-goals.
 - Full spec compliance verified: all requirements in `specs/video-generation.md` and `specs/chat-ui.md` match implementation.
+- Dual elapsed timer race fixed in 0.0.18 — client `setInterval` now exclusively owns `.elapsed-text`, `updateProgress` only updates progress bar fill.
 
 ## All Acceptance Criteria — Passed
 
