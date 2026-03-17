@@ -98,7 +98,7 @@ def generate():
                     return
 
                 else:
-                    yield f"data: {json.dumps({'type': 'progress', 'elapsed': elapsed, 'percent': round(percent, 1)})}\n\n"
+                    yield f"data: {json.dumps({'type': 'progress', 'elapsed': elapsed, 'percent': round(percent)})}\n\n"
 
                 time.sleep(1)
 

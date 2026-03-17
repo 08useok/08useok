@@ -15,6 +15,7 @@ All functionality implemented and verified. Latest tag: `0.0.6`.
 
 ## Completed This Increment
 
+- [x] **Fix SSE percent type to match spec** — changed `round(percent, 1)` (float) to `round(percent)` (integer) in progress events, matching the spec example `"percent": 45`
 - [x] **Fix autoplay browser compatibility** — added `muted` attribute to `<video>` tag so `autoplay` works in Chrome/Edge/Safari (browsers block unmuted autoplay)
 - [x] **Automated test suite** (`test_app.py`) — 22 tests covering all acceptance criteria from both specs (video-generation.md, chat-ui.md). Tests use mocked ZAI client so no API key needed. Run: `python -m pytest test_app.py -v`
 
