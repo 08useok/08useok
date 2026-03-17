@@ -68,8 +68,6 @@ def generate():
                 if status == "SUCCESS":
                     yield f"data: {json.dumps({'type': 'progress', 'elapsed': elapsed, 'percent': 100})}\n\n"
 
-                    time.sleep(5)
-
                     video_results = _get_attr_or_key(result, "video_result")
                     if not video_results:
                         yield f"data: {json.dumps({'type': 'error', 'message': 'video_result가 없습니다.'})}\n\n"
@@ -107,7 +105,11 @@ def generate():
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
-    return Response(stream(), mimetype="text/event-stream")
+    return Response(
+        stream(),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.route("/videos/<filename>")

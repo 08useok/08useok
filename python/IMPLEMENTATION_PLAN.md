@@ -22,6 +22,8 @@ All functionality implemented. `app.py` (Flask backend) and `templates/index.htm
 
 ## Priority 3 — Polish & Validation
 
+- [x] **SSE reliability headers** — added `Cache-Control: no-cache` and `X-Accel-Buffering: no` to prevent proxy/browser buffering
+- [x] **Remove unnecessary 5s sleep** — removed dead-time delay between SUCCESS status and video download
 - [ ] **End-to-end manual test** — requires running server with real ZAI API
 
 ---
