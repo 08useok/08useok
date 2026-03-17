@@ -65,6 +65,27 @@ def test_serve_video_route(client):
     os.remove(test_file)
 
 
+def test_serve_video_supports_range_requests(client):
+    """AC: /videos/<filename> 스트리밍 서빙 — Range header support for video seeking.
+
+    Why: The spec requires streaming serving (스트리밍 서빙). Without conditional=True
+    in send_from_directory, browsers cannot seek within the video player because
+    HTTP Range requests are not honored.
+    """
+    test_file = os.path.join(VIDEOS_DIR, "test_range.mp4")
+    content = b"\x00" * 1000
+    with open(test_file, "wb") as f:
+        f.write(content)
+    try:
+        resp = client.get("/videos/test_range.mp4", headers={"Range": "bytes=0-99"})
+        assert resp.status_code == 206, f"Expected 206 Partial Content, got {resp.status_code}"
+        data = resp.data
+        resp.close()
+        assert len(data) == 100
+    finally:
+        os.remove(test_file)
+
+
 def test_serve_video_missing_returns_404(client):
     resp = client.get("/videos/nonexistent_file.mp4")
     assert resp.status_code == 404

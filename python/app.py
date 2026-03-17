@@ -122,7 +122,7 @@ def generate():
 
 @app.route("/videos/<filename>")
 def serve_video(filename):
-    return send_from_directory(VIDEOS_DIR, filename)
+    return send_from_directory(VIDEOS_DIR, filename, conditional=True)
 
 
 if __name__ == "__main__":
