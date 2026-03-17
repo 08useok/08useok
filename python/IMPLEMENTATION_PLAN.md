@@ -2,7 +2,7 @@
 
 ## Status: Complete
 
-All functionality implemented and verified. Latest tag: `0.0.4`.
+All functionality implemented and verified. Latest tag: `0.0.6`.
 
 - **Backend**: `app.py` — Flask SSE endpoint, video serving, ZAI integration
 - **Frontend**: `templates/index.html` — chat UI with progress bar, video player, download
@@ -15,6 +15,7 @@ All functionality implemented and verified. Latest tag: `0.0.4`.
 
 ## Completed This Increment
 
+- [x] **Fix autoplay browser compatibility** — added `muted` attribute to `<video>` tag so `autoplay` works in Chrome/Edge/Safari (browsers block unmuted autoplay)
 - [x] **Automated test suite** (`test_app.py`) — 22 tests covering all acceptance criteria from both specs (video-generation.md, chat-ui.md). Tests use mocked ZAI client so no API key needed. Run: `python -m pytest test_app.py -v`
 
 ## All Acceptance Criteria — Passed ✓

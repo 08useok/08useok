@@ -223,7 +223,7 @@ function updateProgress(bubble, elapsed, percent) {
 function showVideo(bubble, filename) {
   bubble.innerHTML =
     '<div class="video-result">' +
-      '<video controls autoplay src="/videos/' + encodeURIComponent(filename) + '"></video>' +
+      '<video controls autoplay muted src="/videos/' + encodeURIComponent(filename) + '"></video>' +
       '<a href="/videos/' + encodeURIComponent(filename) + '" download="' + escapeHtml(filename) + '">다운로드</a>' +
     '</div>';
   scrollToBottom();
