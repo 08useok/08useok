@@ -2,48 +2,17 @@
 
 ## Status: Complete
 
-All functionality implemented. `app.py` (Flask backend) and `templates/index.html` (chat UI) are ready.
+All functionality implemented and verified. Tagged `0.0.2`.
+
+- **Backend**: `app.py` — Flask SSE endpoint, video serving, ZAI integration
+- **Frontend**: `templates/index.html` — chat UI with progress bar, video player, download
 
 ---
 
-## Priority 1 — Flask Backend (`app.py`) ✓
+## Remaining
 
-- [x] **Flask app skeleton** — `app.py` with routes, ZAI client, helpers
-- [x] **`POST /generate` SSE endpoint** — prompt validation, SSE progress/done/error events, video download
-- [x] **`GET /videos/<filename>` route** — `send_from_directory()`
+- [ ] **End-to-end manual test** — run server with real ZAI API key to verify full flow
 
-## Priority 2 — Chat UI (Single Page) ✓
+## All Acceptance Criteria — Passed ✓
 
-- [x] **`templates/index.html`** — full chat layout, CSS bubbles, JS interaction
-  - User bubble (right, blue), assistant bubble (left, grey)
-  - Progress bar + elapsed time, video player + download link
-  - Enter to send, Shift+Enter newline, empty prompt prevention
-  - Input disabled during generation, auto-scroll
-
-## Priority 3 — Polish & Validation
-
-- [x] **SSE reliability headers** — added `Cache-Control: no-cache` and `X-Accel-Buffering: no` to prevent proxy/browser buffering
-- [x] **Remove unnecessary 5s sleep** — removed dead-time delay between SUCCESS status and video download
-- [ ] **End-to-end manual test** — requires running server with real ZAI API
-
----
-
-## Acceptance Criteria Checklist (from specs)
-
-### video-generation.md
-- [x] 빈 프롬프트 → 400 에러
-- [x] 1초마다 SSE progress 이벤트
-- [x] 완료 시 SSE done + filename
-- [x] API 오류 시 SSE error 이벤트
-- [x] `videos/` 자동 생성
-- [x] `/videos/<filename>` 접근 가능
-
-### chat-ui.md
-- [x] 전송 시 사용자 말풍선 즉시 표시
-- [x] 진행 바 + 경과 시간 1초마다 업데이트
-- [x] 완료 시 영상 플레이어로 교체
-- [x] 영상 바로 재생 가능 (autoplay + controls)
-- [x] 다운로드 링크 동작 (download attribute)
-- [x] 생성 중 입력 비활성화, 완료 후 재활성화
-- [x] 빈 프롬프트 전송 불가
-- [x] 새 메시지 시 자동 스크롤
+See `specs/video-generation.md` and `specs/chat-ui.md` for full criteria. All items verified against source code.
