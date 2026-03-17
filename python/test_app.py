@@ -219,10 +219,12 @@ def test_ui_download_link(client):
 
 
 def test_ui_video_player(client):
-    """AC: 영상 플레이어"""
+    """AC: 영상 플레이어에서 바로 재생 가능 (autoplay + muted for browser compat)"""
     resp = client.get("/")
     assert b"<video" in resp.data
     assert b"controls" in resp.data
+    assert b"autoplay" in resp.data
+    assert b"muted" in resp.data
 
 
 def test_ui_progress_bar(client):
