@@ -214,9 +214,7 @@ function createAssistantBubble() {
 
 function updateProgress(bubble, elapsed, percent) {
   const fill = bubble.querySelector('.progress-bar-fill');
-  const text = bubble.querySelector('.elapsed-text');
   if (fill) fill.style.width = percent + '%';
-  if (text) text.textContent = elapsed + '초 경과...';
   scrollToBottom();
 }
 
