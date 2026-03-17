@@ -423,6 +423,80 @@ def test_download_http_error_returns_sse_error(client):
         assert "403" in error_events[0]["message"]
 
 
+def test_percent_100_before_done(client):
+    """AC: SUCCESS triggers percent:100 progress event before done event.
+
+    Why: The spec requires a pre-done progress event with percent=100 so the
+    progress bar reaches 100% before the video player replaces it. Without this
+    test, a regression could skip the final progress update.
+    """
+    with patch("app.client") as mock_zai, \
+         patch("app.requests.get") as mock_get, \
+         patch("app.time.sleep"):
+        mock_zai.videos.generations.return_value = {"id": "test-vid"}
+        mock_zai.videos.retrieve_videos_result.return_value = {
+            "task_status": "SUCCESS",
+            "video_result": [{"url": "http://fake.example.com/video.mp4"}],
+        }
+        mock_resp = MagicMock()
+        mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_resp.iter_content.return_value = [b"data"]
+        mock_resp.raise_for_status = MagicMock()
+        mock_get.return_value = mock_resp
+
+        resp = client.post("/generate", json={"prompt": "test"})
+        events = _parse_sse_events(resp.data)
+
+        # Find the last progress event before done
+        progress_events = [e for e in events if e["type"] == "progress"]
+        done_events = [e for e in events if e["type"] == "done"]
+        assert len(done_events) == 1
+        assert len(progress_events) >= 1
+        assert progress_events[-1]["percent"] == 100
+
+        # cleanup
+        test_file = os.path.join(VIDEOS_DIR, done_events[0]["filename"])
+        if os.path.exists(test_file):
+            os.remove(test_file)
+
+
+def test_polling_timeout_on_unknown_status(client):
+    """Unknown/stuck task_status must not loop forever.
+
+    Why: If the API returns an unexpected status (e.g., None, "PENDING"),
+    the polling loop had no exit condition, causing the server to hang
+    indefinitely. The 10-minute MAX_POLL_SECONDS guard prevents this.
+    """
+    with patch("app.client") as mock_zai, \
+         patch("app.time.sleep"), \
+         patch("app.time.time") as mock_time:
+        mock_zai.videos.generations.return_value = {"id": "test-stuck"}
+        # Always return unknown status
+        mock_zai.videos.retrieve_videos_result.return_value = {
+            "task_status": "UNKNOWN",
+        }
+        # Simulate time jumping past the 600s limit
+        mock_time.side_effect = [0, 0, 601]
+
+        resp = client.post("/generate", json={"prompt": "test"})
+        events = _parse_sse_events(resp.data)
+        error_events = [e for e in events if e["type"] == "error"]
+        assert len(error_events) == 1
+        assert "시간" in error_events[0]["message"]
+
+
+def test_path_traversal_blocked(client):
+    """Path traversal via /videos/../ must be rejected.
+
+    Why: Flask's send_from_directory handles this, but without a test,
+    a refactor to send_file or manual path joining could silently expose
+    the filesystem.
+    """
+    resp = client.get("/videos/../app.py")
+    assert resp.status_code in (400, 404)
+
+
 # --- chat-ui.md acceptance criteria (template verification) ---
 
 

@@ -61,11 +61,17 @@ def generate():
 
             start_time = time.time()
 
+            MAX_POLL_SECONDS = 600  # 10-minute safety limit
+
             while True:
                 result = client.videos.retrieve_videos_result(id=video_id)
                 elapsed = int(time.time() - start_time) + 1
                 status = _get_attr_or_key(result, "task_status")
                 percent = min(elapsed / 240 * 100, 95)
+
+                if elapsed > MAX_POLL_SECONDS:
+                    yield f"data: {json.dumps({'type': 'error', 'message': '생성 시간이 초과되었습니다 (10분).'})}\n\n"
+                    return
 
                 if status == "SUCCESS":
                     yield f"data: {json.dumps({'type': 'progress', 'elapsed': elapsed, 'percent': 100})}\n\n"

@@ -2,11 +2,11 @@
 
 ## Status: Complete
 
-All functionality implemented and verified. Latest tag: `0.0.12`.
+All functionality implemented and verified. Latest tag: `0.0.13`.
 
 - **Backend**: `app.py` — Flask SSE endpoint, video serving, ZAI integration
 - **Frontend**: `templates/index.html` — chat UI with progress bar, video player, download
-- **Tests**: `test_app.py` — 34 tests, all passing
+- **Tests**: `test_app.py` — 37 tests, all passing
 
 ---
 
@@ -16,7 +16,8 @@ All functionality implemented and verified. Latest tag: `0.0.12`.
 
 ## Completed This Increment
 
-- [x] **Spec audit** — full gap analysis of specs vs implementation vs tests. Found all acceptance criteria implemented. Fixed spec discrepancy: documented the pre-done `percent: 100` progress event in `specs/video-generation.md`.
+- [x] **Fix infinite polling loop** — added MAX_POLL_SECONDS (600s) guard for unknown/stuck `task_status` values. Without this, a `None` or unrecognized status would loop forever, hanging the server.
+- [x] **Add 3 missing tests** (34→37): `percent:100` pre-done assertion, polling timeout on unknown status, path traversal safety on `/videos/<filename>`.
 
 ## Notes from Audit
 
