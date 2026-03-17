@@ -497,6 +497,115 @@ def test_path_traversal_blocked(client):
     assert resp.status_code in (400, 404)
 
 
+def test_url_encoded_path_traversal_blocked(client):
+    """URL-encoded path traversal must also be rejected.
+
+    Why: Attackers commonly URL-encode directory traversal sequences
+    (%2e%2e%2f = ../) to bypass naive string checks. Flask/Werkzeug
+    normalizes these, but a refactor away from send_from_directory
+    could silently expose the filesystem without this regression test.
+    """
+    resp = client.get("/videos/%2e%2e%2fapp.py")
+    assert resp.status_code in (400, 404)
+
+
+def test_non_dict_json_body_returns_400(client):
+    """A valid JSON body that is not a dict (e.g., array) should return 400.
+
+    Why: The guard `isinstance(data, dict)` covers this, but only
+    test_non_json_body_returns_400 tests unparseable bodies. A JSON array
+    is parseable but not a dict — this exercises a different branch.
+    """
+    resp = client.post(
+        "/generate", data="[1,2,3]", content_type="application/json"
+    )
+    assert resp.status_code == 400
+    data = resp.get_json()
+    assert "error" in data
+
+
+def test_exception_during_polling_returns_error(client):
+    """Exception in retrieve_videos_result (polling phase) must yield SSE error.
+
+    Why: test_generate_error_on_exception only tests exceptions from the
+    initial generations() call. A network timeout *during polling* exercises
+    a different code path (inside the while-loop). Without this test, a
+    regression could leave the SSE stream hanging on a mid-poll exception.
+    """
+    with patch("app.client") as mock_zai, \
+         patch("app.time.sleep"):
+        mock_zai.videos.generations.return_value = {"id": "test-poll-err"}
+        mock_zai.videos.retrieve_videos_result.side_effect = ConnectionError(
+            "network timeout during polling"
+        )
+
+        resp = client.post("/generate", json={"prompt": "test"})
+        events = _parse_sse_events(resp.data)
+        error_events = [e for e in events if e["type"] == "error"]
+        assert len(error_events) == 1
+        assert "network timeout" in error_events[0]["message"]
+
+
+def test_percent_capped_at_95_during_processing(client):
+    """Progress percent must never exceed 95 while still PROCESSING.
+
+    Why: The formula `min(elapsed / 240 * 100, 95)` caps progress at 95%
+    until SUCCESS. Without this test, removing the min() cap or changing
+    the divisor could show 100% before the video is actually ready,
+    misleading the user.
+    """
+    call_count = 0
+
+    def mock_retrieve(**kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count < 3:
+            return {"task_status": "PROCESSING"}
+        return {"task_status": "FAIL"}
+
+    with patch("app.client") as mock_zai, \
+         patch("app.time.sleep"), \
+         patch("app.time.time") as mock_time:
+        mock_zai.videos.generations.return_value = {"id": "test-cap"}
+        mock_zai.videos.retrieve_videos_result.side_effect = mock_retrieve
+        # Simulate elapsed time far beyond 240s so formula would give >95
+        # time.time() called: once for start_time, then once per loop iteration
+        mock_time.side_effect = [0, 500, 500, 500, 500, 500]
+
+        resp = client.post("/generate", json={"prompt": "test"})
+        events = _parse_sse_events(resp.data)
+        progress_events = [e for e in events if e["type"] == "progress"]
+        # All PROCESSING progress events must be <= 95
+        for e in progress_events:
+            assert e["percent"] <= 95, f"percent {e['percent']} exceeds 95 cap"
+
+
+def test_timeout_takes_precedence_over_status(client):
+    """When elapsed > MAX_POLL_SECONDS, timeout fires even if status is SUCCESS.
+
+    Why: The timeout check (line 72) runs before status checks (line 76).
+    This means a very late SUCCESS still triggers timeout. This test documents
+    that intentional ordering — if the check order changes, this test catches it.
+    """
+    with patch("app.client") as mock_zai, \
+         patch("app.time.sleep"), \
+         patch("app.time.time") as mock_time:
+        mock_zai.videos.generations.return_value = {"id": "test-race"}
+        # API returns SUCCESS, but elapsed > 600
+        mock_zai.videos.retrieve_videos_result.return_value = {
+            "task_status": "SUCCESS",
+            "video_result": [{"url": "http://fake.example.com/video.mp4"}],
+        }
+        # start_time=0, then time.time()=700 inside loop → elapsed=701 > 600
+        mock_time.side_effect = [0, 700]
+
+        resp = client.post("/generate", json={"prompt": "test"})
+        events = _parse_sse_events(resp.data)
+        error_events = [e for e in events if e["type"] == "error"]
+        assert len(error_events) == 1
+        assert "시간" in error_events[0]["message"]
+
+
 # --- chat-ui.md acceptance criteria (template verification) ---
 
 
