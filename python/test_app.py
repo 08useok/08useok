@@ -329,6 +329,100 @@ def test_download_failure_returns_error(client):
         assert "download failed" in error_events[0]["message"]
 
 
+def test_generation_parameters_match_spec(client):
+    """Verify exact API parameters from specs/video-generation.md are sent.
+
+    Why: A wrong model name or missing parameter silently produces bad results
+    or API errors. This test catches parameter regressions at the source.
+    """
+    with patch("app.client") as mock_zai, \
+         patch("app.time.sleep"):
+        mock_zai.videos.generations.return_value = {"id": "test-params"}
+        mock_zai.videos.retrieve_videos_result.return_value = {
+            "task_status": "FAIL",
+        }
+        client.post("/generate", json={"prompt": "test prompt"})
+
+        mock_zai.videos.generations.assert_called_once_with(
+            model="cogvideox-3",
+            prompt="test prompt",
+            quality="quality",
+            with_audio=False,
+            size="1920x1080",
+            fps=60,
+        )
+
+
+def test_filename_numbering_with_existing_files(client):
+    """Filename should be N+1 where N is the count of existing *_video.mp4 files.
+
+    Why: The numbering logic counts only *_video.mp4 files. Without this test,
+    a regression (e.g., counting all files) would silently produce wrong names.
+    """
+    # Create two pre-existing video files
+    pre1 = os.path.join(VIDEOS_DIR, "1_video.mp4")
+    pre2 = os.path.join(VIDEOS_DIR, "2_video.mp4")
+    noise = os.path.join(VIDEOS_DIR, "other.txt")
+    for f in (pre1, pre2, noise):
+        open(f, "w").close()
+
+    try:
+        with patch("app.client") as mock_zai, \
+             patch("app.requests.get") as mock_get, \
+             patch("app.time.sleep"):
+            mock_zai.videos.generations.return_value = {"id": "test-num"}
+            mock_zai.videos.retrieve_videos_result.return_value = {
+                "task_status": "SUCCESS",
+                "video_result": [{"url": "http://fake.example.com/v.mp4"}],
+            }
+            mock_resp = MagicMock()
+            mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+            mock_resp.__exit__ = MagicMock(return_value=False)
+            mock_resp.iter_content.return_value = [b"data"]
+            mock_resp.raise_for_status = MagicMock()
+            mock_get.return_value = mock_resp
+
+            resp = client.post("/generate", json={"prompt": "test"})
+            events = _parse_sse_events(resp.data)
+            done = [e for e in events if e["type"] == "done"]
+            assert len(done) == 1
+            # 2 existing *_video.mp4 → next should be 3_video.mp4
+            assert done[0]["filename"] == "3_video.mp4"
+    finally:
+        for f in (pre1, pre2, noise, os.path.join(VIDEOS_DIR, "3_video.mp4")):
+            if os.path.exists(f):
+                os.remove(f)
+
+
+def test_download_http_error_returns_sse_error(client):
+    """When the video CDN returns an HTTP error (e.g. 403), yield SSE error.
+
+    Why: raise_for_status() throws HTTPError for non-2xx responses.
+    This path is distinct from a ConnectionError and must also be caught.
+    """
+    from requests.exceptions import HTTPError
+
+    with patch("app.client") as mock_zai, \
+         patch("app.requests.get") as mock_get, \
+         patch("app.time.sleep"):
+        mock_zai.videos.generations.return_value = {"id": "test-vid"}
+        mock_zai.videos.retrieve_videos_result.return_value = {
+            "task_status": "SUCCESS",
+            "video_result": [{"url": "http://fake.example.com/video.mp4"}],
+        }
+        mock_resp = MagicMock()
+        mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_resp.raise_for_status.side_effect = HTTPError("403 Forbidden")
+        mock_get.return_value = mock_resp
+
+        resp = client.post("/generate", json={"prompt": "test"})
+        events = _parse_sse_events(resp.data)
+        error_events = [e for e in events if e["type"] == "error"]
+        assert len(error_events) == 1
+        assert "403" in error_events[0]["message"]
+
+
 # --- chat-ui.md acceptance criteria (template verification) ---
 
 
