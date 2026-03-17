@@ -167,6 +167,168 @@ def test_generate_error_on_exception(client):
         assert "API down" in error_events[0]["message"]
 
 
+def test_non_json_body_returns_400(client):
+    """Non-JSON request body should return 400, not crash."""
+    resp = client.post("/generate", data="not json", content_type="text/plain")
+    assert resp.status_code == 400
+    data = resp.get_json()
+    assert "error" in data
+
+
+def test_video_id_fallback_to_request_id(client):
+    """When API returns request_id instead of id, use it as video_id."""
+    with patch("app.client") as mock_zai, \
+         patch("app.time.sleep"):
+        mock_zai.videos.generations.return_value = {"request_id": "fallback-123"}
+        mock_zai.videos.retrieve_videos_result.return_value = {
+            "task_status": "FAIL",
+        }
+        resp = client.post("/generate", json={"prompt": "test"})
+        events = _parse_sse_events(resp.data)
+        error_events = [e for e in events if e["type"] == "error"]
+        # Should get FAIL error, not "ID를 가져올 수 없습니다" error
+        assert len(error_events) == 1
+        assert "실패" in error_events[0]["message"]
+        mock_zai.videos.retrieve_videos_result.assert_called_with(id="fallback-123")
+
+
+def test_missing_video_id_returns_error(client):
+    """When API returns neither id nor request_id, yield error event."""
+    with patch("app.client") as mock_zai:
+        mock_zai.videos.generations.return_value = {}
+        resp = client.post("/generate", json={"prompt": "test"})
+        events = _parse_sse_events(resp.data)
+        error_events = [e for e in events if e["type"] == "error"]
+        assert len(error_events) == 1
+        assert "ID" in error_events[0]["message"]
+
+
+def test_empty_video_result_on_success(client):
+    """When SUCCESS but video_result is empty, yield error event."""
+    with patch("app.client") as mock_zai, \
+         patch("app.time.sleep"):
+        mock_zai.videos.generations.return_value = {"id": "test-vid"}
+        mock_zai.videos.retrieve_videos_result.return_value = {
+            "task_status": "SUCCESS",
+            "video_result": [],
+        }
+        resp = client.post("/generate", json={"prompt": "test"})
+        events = _parse_sse_events(resp.data)
+        error_events = [e for e in events if e["type"] == "error"]
+        assert any("video_result" in e["message"] for e in error_events)
+
+
+def test_missing_url_in_video_result(client):
+    """When SUCCESS but video_result[0] has no url, yield error event."""
+    with patch("app.client") as mock_zai, \
+         patch("app.time.sleep"):
+        mock_zai.videos.generations.return_value = {"id": "test-vid"}
+        mock_zai.videos.retrieve_videos_result.return_value = {
+            "task_status": "SUCCESS",
+            "video_result": [{"cover_image_url": "http://example.com/thumb.jpg"}],
+        }
+        resp = client.post("/generate", json={"prompt": "test"})
+        events = _parse_sse_events(resp.data)
+        error_events = [e for e in events if e["type"] == "error"]
+        assert any("URL" in e["message"] for e in error_events)
+
+
+def test_object_style_api_response(client):
+    """_get_attr_or_key should handle object-style (attribute) responses."""
+    with patch("app.client") as mock_zai, \
+         patch("app.time.sleep"):
+        # Use MagicMock with attributes instead of dict
+        gen_response = MagicMock()
+        gen_response.id = "obj-test-123"
+        # Make sure dict check fails
+        gen_response.__class__ = type("ApiResponse", (), {})
+        mock_zai.videos.generations.return_value = gen_response
+
+        result_obj = MagicMock()
+        result_obj.task_status = "FAIL"
+        result_obj.__class__ = type("ApiResult", (), {})
+        mock_zai.videos.retrieve_videos_result.return_value = result_obj
+
+        resp = client.post("/generate", json={"prompt": "test"})
+        events = _parse_sse_events(resp.data)
+        error_events = [e for e in events if e["type"] == "error"]
+        assert len(error_events) == 1
+        assert "실패" in error_events[0]["message"]
+
+
+def test_progress_percent_is_integer(client):
+    """Percent in progress events must be an integer (not float)."""
+    call_count = 0
+
+    def mock_retrieve(**kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count < 3:
+            return {"task_status": "PROCESSING"}
+        return {
+            "task_status": "SUCCESS",
+            "video_result": [{"url": "http://fake.example.com/video.mp4"}],
+        }
+
+    with patch("app.client") as mock_zai, \
+         patch("app.requests.get") as mock_get, \
+         patch("app.time.sleep"):
+        mock_zai.videos.generations.return_value = {"id": "test-vid"}
+        mock_zai.videos.retrieve_videos_result.side_effect = mock_retrieve
+
+        mock_resp = MagicMock()
+        mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_resp.iter_content.return_value = [b"fake"]
+        mock_resp.raise_for_status = MagicMock()
+        mock_get.return_value = mock_resp
+
+        resp = client.post("/generate", json={"prompt": "test"})
+        events = _parse_sse_events(resp.data)
+        progress_events = [e for e in events if e["type"] == "progress"]
+        for e in progress_events:
+            assert isinstance(e["percent"], int), f"percent should be int, got {type(e['percent'])}"
+
+        # cleanup
+        done_events = [e for e in events if e["type"] == "done"]
+        if done_events:
+            test_file = os.path.join(VIDEOS_DIR, done_events[0]["filename"])
+            if os.path.exists(test_file):
+                os.remove(test_file)
+
+
+def test_sse_response_headers(client):
+    """SSE response should include Cache-Control and X-Accel-Buffering headers."""
+    with patch("app.client") as mock_zai, \
+         patch("app.time.sleep"):
+        mock_zai.videos.generations.return_value = {"id": "test-123"}
+        mock_zai.videos.retrieve_videos_result.return_value = {
+            "task_status": "FAIL",
+        }
+        resp = client.post("/generate", json={"prompt": "test"})
+        assert resp.headers.get("Cache-Control") == "no-cache"
+        assert resp.headers.get("X-Accel-Buffering") == "no"
+
+
+def test_download_failure_returns_error(client):
+    """When video download fails, yield SSE error event."""
+    with patch("app.client") as mock_zai, \
+         patch("app.requests.get") as mock_get, \
+         patch("app.time.sleep"):
+        mock_zai.videos.generations.return_value = {"id": "test-vid"}
+        mock_zai.videos.retrieve_videos_result.return_value = {
+            "task_status": "SUCCESS",
+            "video_result": [{"url": "http://fake.example.com/video.mp4"}],
+        }
+        mock_get.side_effect = ConnectionError("download failed")
+
+        resp = client.post("/generate", json={"prompt": "test"})
+        events = _parse_sse_events(resp.data)
+        error_events = [e for e in events if e["type"] == "error"]
+        assert len(error_events) == 1
+        assert "download failed" in error_events[0]["message"]
+
+
 # --- chat-ui.md acceptance criteria (template verification) ---
 
 

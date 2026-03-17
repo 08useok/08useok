@@ -32,7 +32,9 @@ def index():
 
 @app.route("/generate", methods=["POST"])
 def generate():
-    data = request.get_json(force=True)
+    data = request.get_json(force=True, silent=True)
+    if not data or not isinstance(data, dict):
+        return jsonify({"error": "잘못된 요청 형식입니다."}), 400
     prompt = (data.get("prompt") or "").strip()
     if not prompt:
         return jsonify({"error": "프롬프트를 입력해주세요."}), 400

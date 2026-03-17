@@ -2,7 +2,7 @@
 
 ## Status: Complete
 
-All functionality implemented and verified. Latest tag: `0.0.7`.
+All functionality implemented and verified. Latest tag: `0.0.9`.
 
 - **Backend**: `app.py` — Flask SSE endpoint, video serving, ZAI integration
 - **Frontend**: `templates/index.html` — chat UI with progress bar, video player, download
@@ -15,10 +15,9 @@ All functionality implemented and verified. Latest tag: `0.0.7`.
 
 ## Completed This Increment
 
-- [x] **Fix SSE percent type to match spec** — changed `round(percent, 1)` (float) to `round(percent)` (integer) in progress events, matching the spec example `"percent": 45`
-- [x] **Fix autoplay browser compatibility** — added `muted` attribute to `<video>` tag so `autoplay` works in Chrome/Edge/Safari (browsers block unmuted autoplay)
-- [x] **Automated test suite** (`test_app.py`) — 22 tests covering all acceptance criteria from both specs (video-generation.md, chat-ui.md). Tests use mocked ZAI client so no API key needed. Run: `python -m pytest test_app.py -v`
+- [x] **Fix non-JSON body crash** — `request.get_json(force=True)` returned `None` for unparseable bodies, causing `AttributeError`. Added guard to return 400 with `silent=True`.
+- [x] **Strengthen test suite** — 22 → 31 tests. Added coverage for: non-JSON body, `video_id` fallback via `request_id`, missing video ID, empty `video_result` on SUCCESS, missing URL in video result, object-style API responses, `percent` integer type contract, SSE response headers, download failure path.
 
-## All Acceptance Criteria — Passed ✓
+## All Acceptance Criteria — Passed
 
 See `specs/video-generation.md` and `specs/chat-ui.md` for full criteria. All items verified against source code.
