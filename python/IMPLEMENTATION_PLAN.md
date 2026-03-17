@@ -2,11 +2,11 @@
 
 ## Status: Complete
 
-All functionality implemented and verified. Latest tag: `0.0.22`.
+All functionality implemented and verified. Latest tag: `0.0.23`.
 
 - **Backend**: `app.py` — Flask SSE endpoint, video serving (with Range request support), ZAI integration
 - **Frontend**: `templates/index.html` — chat UI with progress bar, video player, download
-- **Tests**: `test_app.py` — 49 tests, all passing
+- **Tests**: `test_app.py` — 51 tests, all passing
 
 ---
 
@@ -24,6 +24,7 @@ All functionality implemented and verified. Latest tag: `0.0.22`.
 - Test coverage gaps closed in 0.0.20 — added 3 tests: bubble replacement contract, elapsed text exclusive ownership, input clearing after send (44→47 tests).
 - Stream disconnect handling added in 0.0.21 — `receivedTerminal` flag detects when SSE stream closes without done/error event, shows "연결이 끊어졌습니다." error (47→48 tests).
 - Test coverage gap closed in 0.0.22 — added test for AC #1 (user bubble appears on send via `addUserMessage`) (48→49 tests).
+- Defensive hardening in 0.0.23 — added `isinstance` guard for non-list `video_result`, `elapsed` field validation, 400 content-type assertion (49→51 tests).
 
 ## All Acceptance Criteria — Passed
 

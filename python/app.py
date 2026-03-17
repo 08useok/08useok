@@ -77,7 +77,7 @@ def generate():
                     yield f"data: {json.dumps({'type': 'progress', 'elapsed': elapsed, 'percent': 100})}\n\n"
 
                     video_results = _get_attr_or_key(result, "video_result")
-                    if not video_results:
+                    if not video_results or not isinstance(video_results, (list, tuple)):
                         yield f"data: {json.dumps({'type': 'error', 'message': 'video_result가 없습니다.'})}\n\n"
                         return
 

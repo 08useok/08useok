@@ -153,6 +153,9 @@ def test_generate_progress_then_done(client):
 
         assert len(progress_events) >= 2
         assert all("elapsed" in e and "percent" in e for e in progress_events)
+        for e in progress_events:
+            assert isinstance(e["elapsed"], int) and e["elapsed"] >= 0, \
+                f"elapsed must be a non-negative int, got {e['elapsed']}"
         assert len(done_events) == 1
         assert "filename" in done_events[0]
         assert done_events[0]["filename"].endswith("_video.mp4")
@@ -237,6 +240,27 @@ def test_empty_video_result_on_success(client):
         events = _parse_sse_events(resp.data)
         error_events = [e for e in events if e["type"] == "error"]
         assert any("video_result" in e["message"] for e in error_events)
+
+
+def test_non_list_video_result_returns_error(client):
+    """When SUCCESS but video_result is a dict (not list), yield clean error.
+
+    Why: The ZAI API should return a list, but if it returns an unexpected type
+    (e.g. a dict), video_results[0] would raise KeyError instead of yielding a
+    user-friendly SSE error. The isinstance guard prevents raw exceptions.
+    """
+    with patch("app.client") as mock_zai, \
+         patch("app.time.sleep"):
+        mock_zai.videos.generations.return_value = {"id": "test-vid"}
+        mock_zai.videos.retrieve_videos_result.return_value = {
+            "task_status": "SUCCESS",
+            "video_result": {"unexpected": "dict"},
+        }
+        resp = client.post("/generate", json={"prompt": "test"})
+        events = _parse_sse_events(resp.data)
+        error_events = [e for e in events if e["type"] == "error"]
+        assert len(error_events) == 1
+        assert "video_result" in error_events[0]["message"]
 
 
 def test_missing_url_in_video_result(client):
@@ -803,3 +827,16 @@ def test_ui_stream_disconnect_shows_error(client):
     # On stream end without terminal event, showError must be called
     assert "if (!receivedTerminal)" in html
     assert "연결이 끊어졌습니다" in html
+
+
+def test_400_returns_json_not_sse(client):
+    """400 error responses must return application/json, not text/event-stream.
+
+    Why: If a validation error (empty prompt, bad JSON) accidentally returns
+    SSE content-type, the client's EventSource/fetch handler may silently
+    swallow the error instead of displaying it to the user.
+    """
+    resp = client.post("/generate", json={"prompt": ""})
+    assert resp.status_code == 400
+    assert "application/json" in resp.content_type
+    assert "text/event-stream" not in resp.content_type
