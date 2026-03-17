@@ -771,3 +771,20 @@ def test_ui_input_cleared_after_send(client):
     resp = client.get("/")
     html = resp.data.decode("utf-8")
     assert "promptInput.value = ''" in html
+
+
+def test_ui_stream_disconnect_shows_error(client):
+    """AC: SSE 스트림이 done/error 이벤트 없이 끊기면 오류 표시.
+
+    Why: If the server crashes mid-stream, result.done becomes true without
+    a terminal event. Without the receivedTerminal guard, the UI silently
+    leaves the bubble in "generating" state with no error feedback. This test
+    verifies the guard exists and triggers showError on unexpected disconnection.
+    """
+    resp = client.get("/")
+    html = resp.data.decode("utf-8")
+    # receivedTerminal flag must exist to track whether done/error was received
+    assert "receivedTerminal" in html
+    # On stream end without terminal event, showError must be called
+    assert "if (!receivedTerminal)" in html
+    assert "연결이 끊어졌습니다" in html

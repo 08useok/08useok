@@ -2,11 +2,11 @@
 
 ## Status: Complete
 
-All functionality implemented and verified. Latest tag: `0.0.20`.
+All functionality implemented and verified. Latest tag: `0.0.21`.
 
 - **Backend**: `app.py` — Flask SSE endpoint, video serving (with Range request support), ZAI integration
 - **Frontend**: `templates/index.html` — chat UI with progress bar, video player, download
-- **Tests**: `test_app.py` — 47 tests, all passing
+- **Tests**: `test_app.py` — 48 tests, all passing
 
 ---
 
@@ -22,6 +22,7 @@ All functionality implemented and verified. Latest tag: `0.0.20`.
 - Dual elapsed timer race fixed in 0.0.18 — client `setInterval` now exclusively owns `.elapsed-text`, `updateProgress` only updates progress bar fill.
 - Spec clarified in 0.0.19 — `specs/chat-ui.md` updated to explicitly document client-timer-only elapsed design.
 - Test coverage gaps closed in 0.0.20 — added 3 tests: bubble replacement contract, elapsed text exclusive ownership, input clearing after send (44→47 tests).
+- Stream disconnect handling added in 0.0.21 — `receivedTerminal` flag detects when SSE stream closes without done/error event, shows "연결이 끊어졌습니다." error (47→48 tests).
 
 ## All Acceptance Criteria — Passed
 

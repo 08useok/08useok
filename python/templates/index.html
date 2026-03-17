@@ -254,6 +254,7 @@ function sendPrompt() {
 
   const bubble = createAssistantBubble();
   var localElapsed = 0;
+  var receivedTerminal = false;
   var elapsedTimer = setInterval(function() {
     localElapsed++;
     var text = bubble.querySelector('.elapsed-text');
@@ -284,6 +285,9 @@ function sendPrompt() {
     function read() {
       reader.read().then(function(result) {
         if (result.done) {
+          if (!receivedTerminal) {
+            showError(bubble, '연결이 끊어졌습니다.');
+          }
           cleanup();
           return;
         }
@@ -299,11 +303,13 @@ function sendPrompt() {
             if (data.type === 'progress') {
               updateProgress(bubble, data.elapsed, data.percent);
             } else if (data.type === 'done') {
+              receivedTerminal = true;
               showVideo(bubble, data.filename);
               cleanup();
               reader.cancel();
               return;
             } else if (data.type === 'error') {
+              receivedTerminal = true;
               showError(bubble, data.message);
               cleanup();
               reader.cancel();
