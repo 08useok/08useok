@@ -2,11 +2,11 @@
 
 ## Status: Complete
 
-All functionality implemented and verified. Latest tag: `0.0.15`.
+All functionality implemented and verified. Latest tag: `0.0.16`.
 
 - **Backend**: `app.py` — Flask SSE endpoint, video serving, ZAI integration
 - **Frontend**: `templates/index.html` — chat UI with progress bar, video player, download
-- **Tests**: `test_app.py` — 42 tests, all passing
+- **Tests**: `test_app.py` — 43 tests, all passing
 
 ---
 

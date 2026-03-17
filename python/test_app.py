@@ -677,3 +677,18 @@ def test_ui_elapsed_text(client):
     resp = client.get("/")
     html = resp.data.decode("utf-8")
     assert "초 경과" in html
+
+
+def test_ui_client_side_elapsed_timer(client):
+    """AC: 경과 시간이 1초마다 업데이트 — SSE 이벤트와 독립적으로 클라이언트 타이머 동작.
+
+    Why: The spec requires elapsed time to update every second (chat-ui.md AC #2).
+    Without a client-side setInterval, the elapsed counter only updates when SSE
+    events arrive. If the server stalls, the UI would freeze. This test verifies
+    the setInterval-based timer exists in the rendered HTML.
+    """
+    resp = client.get("/")
+    html = resp.data.decode("utf-8")
+    assert "setInterval" in html
+    assert "localElapsed" in html
+    assert "clearInterval" in html

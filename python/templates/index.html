@@ -255,6 +255,17 @@ function sendPrompt() {
   setInputEnabled(false);
 
   const bubble = createAssistantBubble();
+  var localElapsed = 0;
+  var elapsedTimer = setInterval(function() {
+    localElapsed++;
+    var text = bubble.querySelector('.elapsed-text');
+    if (text) text.textContent = localElapsed + '초 경과...';
+  }, 1000);
+
+  function cleanup() {
+    clearInterval(elapsedTimer);
+    setInputEnabled(true);
+  }
 
   fetch('/generate', {
     method: 'POST',
@@ -264,7 +275,7 @@ function sendPrompt() {
     if (!response.ok) {
       return response.json().then(function(err) {
         showError(bubble, err.error || '요청 실패');
-        setInputEnabled(true);
+        cleanup();
       });
     }
 
@@ -275,7 +286,7 @@ function sendPrompt() {
     function read() {
       reader.read().then(function(result) {
         if (result.done) {
-          setInputEnabled(true);
+          cleanup();
           return;
         }
         buffer += decoder.decode(result.value, { stream: true });
@@ -291,12 +302,12 @@ function sendPrompt() {
               updateProgress(bubble, data.elapsed, data.percent);
             } else if (data.type === 'done') {
               showVideo(bubble, data.filename);
-              setInputEnabled(true);
+              cleanup();
               reader.cancel();
               return;
             } else if (data.type === 'error') {
               showError(bubble, data.message);
-              setInputEnabled(true);
+              cleanup();
               reader.cancel();
               return;
             }
@@ -305,13 +316,13 @@ function sendPrompt() {
         read();
       }).catch(function(err) {
         showError(bubble, '연결 오류: ' + err.message);
-        setInputEnabled(true);
+        cleanup();
       });
     }
     read();
   }).catch(function(err) {
     showError(bubble, '연결 오류: ' + err.message);
-    setInputEnabled(true);
+    cleanup();
   });
 }
 
