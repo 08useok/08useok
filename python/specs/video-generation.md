@@ -12,9 +12,11 @@
 SSE 이벤트 형식:
 ```
 data: {"type": "progress", "elapsed": 37, "percent": 45}
+data: {"type": "progress", "elapsed": 242, "percent": 100}   ← 완료 직전 전송
 data: {"type": "done", "filename": "3_video.mp4"}
 data: {"type": "error", "message": "오류 내용"}
 ```
+> 완료 시 `percent: 100` progress 이벤트를 먼저 보내 프로그레스 바를 100%로 채운 후 done 이벤트를 전송한다.
 
 ### GET /videos/<filename>
 - `videos/` 디렉토리의 영상 파일을 스트리밍 서빙

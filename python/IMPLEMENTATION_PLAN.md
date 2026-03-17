@@ -2,10 +2,11 @@
 
 ## Status: Complete
 
-All functionality implemented and verified. Latest tag: `0.0.11`.
+All functionality implemented and verified. Latest tag: `0.0.12`.
 
 - **Backend**: `app.py` — Flask SSE endpoint, video serving, ZAI integration
 - **Frontend**: `templates/index.html` — chat UI with progress bar, video player, download
+- **Tests**: `test_app.py` — 34 tests, all passing
 
 ---
 
@@ -15,13 +16,19 @@ All functionality implemented and verified. Latest tag: `0.0.11`.
 
 ## Completed This Increment
 
-- [x] **Fix SSE reader leak** — frontend `reader.cancel()` was missing on `done`/`error` events, leaving the ReadableStream reader open until server-side close. Added `reader.cancel()` before early returns.
-- [x] **Update chat-ui spec** — documented `autoplay muted` attributes on `<video>` tag (added in 0.0.5 for browser compatibility, spec was out of date).
+- [x] **Spec audit** — full gap analysis of specs vs implementation vs tests. Found all acceptance criteria implemented. Fixed spec discrepancy: documented the pre-done `percent: 100` progress event in `specs/video-generation.md`.
+
+## Notes from Audit
+
+- JS runtime behaviors (user bubble display, bubble replacement) are implemented correctly but untestable with pytest — would need Playwright/Selenium for browser-level verification.
+- `/videos/<filename>` has no `.mp4` restriction — acceptable for localhost-only app per `specs/overview.md` non-goals.
 
 ## Previous Increments
 
-- [x] **Fix non-JSON body crash** — `request.get_json(force=True)` returned `None` for unparseable bodies, causing `AttributeError`. Added guard to return 400 with `silent=True`.
-- [x] **Strengthen test suite** — 22 → 31 tests. Added coverage for: non-JSON body, `video_id` fallback via `request_id`, missing video ID, empty `video_result` on SUCCESS, missing URL in video result, object-style API responses, `percent` integer type contract, SSE response headers, download failure path.
+- [x] **Fix SSE reader leak** — frontend `reader.cancel()` was missing on `done`/`error` events.
+- [x] **Update chat-ui spec** — documented `autoplay muted` attributes on `<video>` tag.
+- [x] **Fix non-JSON body crash** — guard for unparseable JSON bodies returning 400.
+- [x] **Strengthen test suite** — 22 → 34 tests covering edge cases.
 
 ## All Acceptance Criteria — Passed
 
