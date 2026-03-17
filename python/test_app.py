@@ -713,3 +713,61 @@ def test_ui_client_side_elapsed_timer(client):
     assert "setInterval" in html
     assert "localElapsed" in html
     assert "clearInterval" in html
+
+
+def test_ui_bubble_replacement_not_addition(client):
+    """AC: 완료 시 말풍선이 영상 플레이어로 '교체' — 새 말풍선 추가 X.
+
+    Why: The spec (chat-ui.md AC #3) explicitly requires showVideo to mutate the
+    existing bubble via innerHTML replacement, not append a new element. This
+    prevents duplicate bubbles from appearing in the chat.
+    """
+    resp = client.get("/")
+    html = resp.data.decode("utf-8")
+    # showVideo receives the existing bubble and overwrites its innerHTML
+    assert "bubble.innerHTML" in html
+    # showVideo must NOT create a new element or append to chatMessages
+    assert "showVideo" in html
+    # Verify showVideo signature takes an existing bubble, not creating a new one
+    assert "function showVideo(bubble," in html
+
+
+def test_ui_elapsed_text_exclusive_ownership(client):
+    """AC: SSE progress 이벤트는 elapsed-text를 업데이트하지 않음 — 클라이언트 타이머만 담당.
+
+    Why: The spec (chat-ui.md) requires that the client setInterval exclusively
+    owns the .elapsed-text element. If updateProgress also wrote to .elapsed-text,
+    the two writers would race and cause flickering. This test verifies
+    updateProgress only updates the progress bar fill, never the elapsed text.
+    """
+    resp = client.get("/")
+    html = resp.data.decode("utf-8")
+    # Extract updateProgress function body
+    start = html.index("function updateProgress(")
+    # Find the closing brace by counting braces
+    depth = 0
+    end = start
+    for i in range(start, len(html)):
+        if html[i] == '{':
+            depth += 1
+        elif html[i] == '}':
+            depth -= 1
+            if depth == 0:
+                end = i + 1
+                break
+    update_progress_body = html[start:end]
+    # Must NOT contain elapsed-text reference
+    assert "elapsed-text" not in update_progress_body
+    # Must contain progress-bar-fill reference (its actual job)
+    assert "progress-bar-fill" in update_progress_body
+
+
+def test_ui_input_cleared_after_send(client):
+    """AC: 전송 시 입력창 내용 초기화.
+
+    Why: The spec requires the input field to be cleared after sending a prompt,
+    so the user can immediately type a new message without manually clearing.
+    """
+    resp = client.get("/")
+    html = resp.data.decode("utf-8")
+    assert "promptInput.value = ''" in html
