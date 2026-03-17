@@ -15,7 +15,8 @@ All functionality implemented and verified. Latest tag: `0.0.10`.
 
 ## Completed This Increment
 
-- [x] **Add regression-catching tests** — 31 → 34 tests. Added: API generation parameters verification (catches model/param regressions), filename numbering with pre-existing files (validates N+1 logic), HTTP error from video CDN download (raise_for_status path distinct from ConnectionError).
+- [x] **Fix SSE reader leak** — frontend `reader.cancel()` was missing on `done`/`error` events, leaving the ReadableStream reader open until server-side close. Added `reader.cancel()` before early returns.
+- [x] **Update chat-ui spec** — documented `autoplay muted` attributes on `<video>` tag (added in 0.0.5 for browser compatibility, spec was out of date).
 
 ## Previous Increments
 

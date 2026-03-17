@@ -22,7 +22,7 @@ Claude 채팅창 스타일의 단일 페이지 웹 UI. 프롬프트 입력, 생�
 
 ### 어시스턴트 메시지 — 완료
 - 생성 중 말풍선이 완료 상태로 교체 (새 말풍선 추가 X)
-- `<video>` 태그로 인라인 영상 플레이어 (controls, 100% 너비)
+- `<video>` 태그로 인라인 영상 플레이어 (controls autoplay muted, 100% 너비)
 - "다운로드" 링크 (`/videos/<filename>`, download 속성)
 
 ### 어시스턴트 메시지 — 오류

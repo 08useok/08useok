@@ -292,10 +292,12 @@ function sendPrompt() {
             } else if (data.type === 'done') {
               showVideo(bubble, data.filename);
               setInputEnabled(true);
+              reader.cancel();
               return;
             } else if (data.type === 'error') {
               showError(bubble, data.message);
               setInputEnabled(true);
+              reader.cancel();
               return;
             }
           } catch (e) {}
