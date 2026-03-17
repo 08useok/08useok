@@ -14,7 +14,7 @@
 ## Validation
 - Run server: `python app.py` (Flask dev server)
 - Syntax check: `python -m py_compile app.py`
-- No test framework configured yet
+- Tests: `python -m pytest test_app.py -v` (22 tests, mocked ZAI client)
 
 ## Operational Notes
 - Python 경로: `C:\Users\useok\AppData\Local\Python\pythoncore-3.14-64\python.exe`
